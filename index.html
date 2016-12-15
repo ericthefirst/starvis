@@ -12,22 +12,20 @@
 
 		<p id="loading_msg">Loading data...</p>
 		<script>
-			var STAR_COLORS = ["#FF8000", "#0080FF", "#FF0000", "#00FF00"];
-			var RADIUS = 5;
+
+			// model
 			var DATAFILE = "data/sdss_4class_200_c_pca.csv";
 			var dataset;
-
-			var mouseDown = false;
-
-			var view_w = window.innerWidth;
-			var view_h = window.innerHeight;
-
-			// attributes of the data
 			var min_x = 999;
 			var min_y = 999;
 			var max_x = -999;
 			var max_y = -999;
 
+			// view
+			var STAR_COLORS = ["#FF8000", "#0080FF", "#FF0000", "#00FF00"];
+			var RADIUS = 5;
+			var view_w = window.innerWidth;
+			var view_h = window.innerHeight;
 			var zoom_x = 1;
 			var zoom_y = 1;
 			var pan_x = 0;
@@ -35,20 +33,20 @@
 			var max_scroll = 10;
 			var DZOOM = Math.pow(2,0.1);
 
+			// control
+			var mouseDown = false;
 			var old_mouse_x, old_mouse_y;
 
-			function clear_loading_message() {
-				parent = document.getElementById("body");
-				child = document.getElementById("loading_msg");
-				parent.removeChild(child);
-			}
 
-			function update_scroll(new_scroll) {
-				if(new_scroll > max_scroll) {
-					max_scroll = new_scroll;
-					DZOOM = Math.pow(2,1/max_scroll);
-				}
-			}
+
+			// Handle the data
+			d3.csv(DATAFILE, function(data) {
+				dataset = data
+				clear_loading_message();
+				extract_extrema(dataset);
+				initialize_zoom_and_pan();
+				build_view();
+			});
 
 			function extract_extrema() {
 				dataset.forEach(function(d, i) {
@@ -62,6 +60,15 @@
 				console.log("Range: [" + min_x + "," + max_x + "] x [" + min_y + "," + max_y + "]");
 			}
 
+
+
+			// Create the visualization
+			function clear_loading_message() {
+				parent = document.getElementById("body");
+				child = document.getElementById("loading_msg");
+				parent.removeChild(child);
+			}
+
 			function initialize_zoom_and_pan() {
 				zoom_x = view_w / (max_x - min_x);
 				zoom_y = view_h / (max_y - min_y);
@@ -69,13 +76,12 @@
 				pan_y = -min_y * zoom_y;
 			}
 
-			d3.csv(DATAFILE, function(data) {
-				dataset = data
-				clear_loading_message();
-				extract_extrema(dataset);
-				initialize_zoom_and_pan();
-				build_view();
-			});
+			function update_scroll(new_scroll) {
+				if(new_scroll > max_scroll) {
+					max_scroll = new_scroll;
+					DZOOM = Math.pow(2,1/max_scroll);
+				}
+			}
 
 			function build_view() {
 				var svg = d3.select("body").append("svg");
@@ -101,6 +107,9 @@
 				 .attr("opacity", 0.75 );
 			}
 
+
+
+			// Respond to mouse
 			function handle_wheel(event) {
 				event.preventDefault();
 				update_scroll(event.deltaY);
@@ -130,7 +139,11 @@
 				old_mouse_x = event.clientX;
 				old_mouse_y = event.clientY;
 			}
-			function handle_mouse_up()   { mouseDown = false; }
+			
+			function handle_mouse_up()   { 
+				mouseDown = false; 
+			}
+			
 			function handle_mouse_move(event) {
 				if(!mouseDown)
 					return;
@@ -142,6 +155,7 @@
 				old_mouse_y = new_mouse_y;
 				update_stars();
 			}
+
 		</script>
 	</body>
 </html>
