@@ -1,0 +1,147 @@
+<html>
+	<head>
+		<title>Starvis 0.1</title>
+		<meta charset="utf-8">
+		<script src="../d3/d3.js"> </script>
+	</head>
+	<body id="body" 
+		onwheel="handle_wheel(event)" 
+		onmousedown="handle_mouse_down(event)"
+		onmouseup="handle_mouse_up()"
+		onmousemove="handle_mouse_move(event)">
+
+		<p id="loading_msg">Loading data...</p>
+		<script>
+			var STAR_COLORS = ["#FF8000", "#0080FF", "#FF0000", "#00FF00"];
+			var RADIUS = 5;
+			var DATAFILE = "data/sdss_4class_200_c_pca.csv";
+			var dataset;
+
+			var mouseDown = false;
+
+			var view_w = window.innerWidth;
+			var view_h = window.innerHeight;
+
+			// attributes of the data
+			var min_x = 999;
+			var min_y = 999;
+			var max_x = -999;
+			var max_y = -999;
+
+			var zoom_x = 1;
+			var zoom_y = 1;
+			var pan_x = 0;
+			var pan_y = 0;
+			var max_scroll = 10;
+			var DZOOM = Math.pow(2,0.1);
+
+			var old_mouse_x, old_mouse_y;
+
+			function clear_loading_message() {
+				parent = document.getElementById("body");
+				child = document.getElementById("loading_msg");
+				parent.removeChild(child);
+			}
+
+			function update_scroll(new_scroll) {
+				if(new_scroll > max_scroll) {
+					max_scroll = new_scroll;
+					DZOOM = Math.pow(2,1/max_scroll);
+				}
+			}
+
+			function extract_extrema() {
+				dataset.forEach(function(d, i) {
+					var x = parseFloat(d.f1);
+					var y = parseFloat(d.f2);
+					if(x < min_x) min_x = x;
+					if(y < min_y) min_y = y;
+					if(x > max_x) max_x = x;
+					if(y > max_y) max_y = y;
+				});
+				console.log("Range: [" + min_x + "," + max_x + "] x [" + min_y + "," + max_y + "]");
+			}
+
+			function initialize_zoom_and_pan() {
+				zoom_x = view_w / (max_x - min_x);
+				zoom_y = view_h / (max_y - min_y);
+				pan_x = -min_x * zoom_x;
+				pan_y = -min_y * zoom_y;
+			}
+
+			d3.csv(DATAFILE, function(data) {
+				dataset = data
+				clear_loading_message();
+				extract_extrema(dataset);
+				initialize_zoom_and_pan();
+				build_view();
+			});
+
+			function build_view() {
+				var svg = d3.select("body").append("svg");
+				svg.attr("width",  view_w)
+			  	.attr("height", view_h);
+				var stars = svg.selectAll("circle")
+					.data(dataset)
+					.enter()
+					.append("circle");
+				stars.attr("cx",   function(d) { return d.f1 * zoom_x + pan_x; })
+		     .attr("cy",   function(d) { return d.f2 * zoom_y + pan_y; })
+				 .attr("r", function() { return RADIUS; })
+				 .attr("fill", function(d) { return STAR_COLORS[d.cls]})
+				 .attr("opacity", 0.75 );
+			}
+
+			function update_stars() {
+				var stars = d3.select("body").select("svg").selectAll("circle").data(dataset);
+				stars.attr("cx",   function(d) { return d.f1 * zoom_x + pan_x; })
+		     .attr("cy",   function(d) { return d.f2 * zoom_y + pan_y; })
+				 .attr("r", function() { return RADIUS; })
+				 .attr("fill", function(d) { return STAR_COLORS[d.cls]})
+				 .attr("opacity", 0.75 );
+			}
+
+			function handle_wheel(event) {
+				event.preventDefault();
+				update_scroll(event.deltaY);
+				var scroll_amt = Math.pow(DZOOM,  event.deltaY);
+				var offset_x = event.clientX;
+				var offset_y = event.clientY;
+
+				if(scroll_amt < 0)
+					scroll_amt = -1/scroll_amt;
+
+				pan_x -=  offset_x;
+				pan_y -=  offset_y;
+
+				zoom_x *= scroll_amt;
+				zoom_y *= scroll_amt;
+				pan_x  *= scroll_amt;
+				pan_y  *= scroll_amt;
+
+				pan_x += offset_x;
+				pan_y += offset_y;
+
+				update_stars();
+			}
+
+			function handle_mouse_down(event) { 
+				mouseDown = true;
+				old_mouse_x = event.clientX;
+				old_mouse_y = event.clientY;
+			}
+			function handle_mouse_up()   { mouseDown = false; }
+			function handle_mouse_move(event) {
+				if(!mouseDown)
+					return;
+				var new_mouse_x = event.clientX;
+				var new_mouse_y = event.clientY;
+				pan_x += (new_mouse_x-old_mouse_x);
+				pan_y += (new_mouse_y-old_mouse_y);
+				old_mouse_x = new_mouse_x;
+				old_mouse_y = new_mouse_y;
+				update_stars();
+			}
+		</script>
+	</body>
+</html>
